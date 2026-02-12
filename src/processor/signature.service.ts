@@ -31,13 +31,15 @@ export class SignatureService {
     signature: string,
   ): Promise<boolean> {
     try {
+      console.log('[SIG_DEBUG] verifySignature called for platform:', request.platform);
       if (request.platform === 1) {
         return this.verifyIOSSignature(request, signature);
       } else {
         return this.verifyAndroidSignature(request, signature);
       }
     } catch (error) {
-      console.error(error);
+      console.error('[SIG_DEBUG] Signature verification EXCEPTION:', error.message);
+      console.error('[SIG_DEBUG] Full error:', error);
       throw new HttpException(
         SIGNATURE_VERIFICATION_ERROR,
         SIGNATURE_VERIFICATION_STATUS,
@@ -212,7 +214,10 @@ export class SignatureService {
     signature: string,
   ): Promise<boolean> {
     const rawMessage = this.createMessageToSign(request);
+    console.log('[SIG_DEBUG] Raw message:', new TextDecoder().decode(rawMessage));
+    console.log('[SIG_DEBUG] Raw message hex:', Buffer.from(rawMessage).toString('hex'));
     const hash = createHash('sha256').update(rawMessage).digest('hex');
+    console.log('[SIG_DEBUG] SHA256 hash:', hash);
     return this.verifySignatureWithHash(
       request,
       signature,
@@ -246,12 +251,17 @@ export class SignatureService {
       .getPublic()
       .encodeCompressed('hex');
 
-    // Compare the recovered public key with the device address
-    return (
-      this.computeSubstrateAddressFromPublicKey(
-        Buffer.from(compressedKey, 'hex'),
-      ) === request.deviceAddress
+    console.log('[SIG_DEBUG] Recovered public key (compressed):', compressedKey);
+
+    const computedAddress = this.computeSubstrateAddressFromPublicKey(
+      Buffer.from(compressedKey, 'hex'),
     );
+    console.log('[SIG_DEBUG] Computed SS58 address:', computedAddress);
+    console.log('[SIG_DEBUG] Expected SS58 address:', request.deviceAddress);
+    console.log('[SIG_DEBUG] Match:', computedAddress === request.deviceAddress ? '✅' : '❌');
+
+    // Compare the recovered public key with the device address
+    return computedAddress === request.deviceAddress;
   }
 
   private preprocessMessage(message: Uint8Array): Uint8Array {

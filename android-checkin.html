@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acurast Android Check-in</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff41;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #ff2600;
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            color: #00ccff;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            background: #1a1f3a;
+            border: 1px solid #00ff41;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #ff2600;
+            color: #fff;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        button:active {
+            background: #cc1f00;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1f3a;
+            border: 1px solid #00ff41;
+            min-height: 50px;
+            word-break: break-all;
+        }
+        .success {
+            color: #00ff41;
+        }
+        .error {
+            color: #ff2600;
+        }
+        .info {
+            color: #00ccff;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1f3a;
+            border-left: 3px solid #00ccff;
+        }
+        .auto-status {
+            text-align: center;
+            color: #ffaa00;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ ACURAST CHECK-IN ⚡</h1>
+
+    <div class="input-group">
+        <label>Backend URL:</label>
+        <input type="text" id="backendUrl" value="http://192.168.1.225:8002" />
+    </div>
+
+    <div class="input-group">
+        <label>Device Address (SS58):</label>
+        <input type="text" id="deviceAddress" placeholder="5XXX..." />
+    </div>
+
+    <div class="input-group">
+        <label>WiFi SSID:</label>
+        <input type="text" id="ssid" value="Tyler5" />
+    </div>
+
+    <button onclick="sendCheckIn()">🚀 SEND CHECK-IN</button>
+
+    <button onclick="toggleAutoCheckIn()" id="autoBtn" style="background: #00aa00; margin-top: 10px;">
+        ▶️ START AUTO CHECK-IN (60s interval)
+    </button>
+
+    <div class="status" id="status">
+        Ready to send check-in...
+    </div>
+
+    <div class="info">
+        ℹ️ <strong>Mode:</strong> Bypass (pas de signature)<br>
+        📡 <strong>Platform:</strong> 0 (Android)<br>
+        🔋 <strong>Battery:</strong> Détection auto<br>
+        🌡️ <strong>Temperature:</strong> Valeurs simulées<br>
+        📶 <strong>Network:</strong> wifi (Tyler5)
+    </div>
+
+    <div class="auto-status" id="autoStatus"></div>
+
+    <script>
+        let autoCheckInInterval = null;
+        let checkInCount = 0;
+
+        function getBatteryLevel() {
+            // Try to get real battery level (requires HTTPS or localhost)
+            if ('getBattery' in navigator) {
+                return navigator.getBattery().then(battery => ({
+                    level: Math.round(battery.level * 100),
+                    charging: battery.charging
+                }));
+            }
+            // Fallback: simulate battery level
+            return Promise.resolve({
+                level: 50 + Math.random() * 50,
+                charging: Math.random() > 0.5
+            });
+        }
+
+        async function sendCheckIn() {
+            const backendUrl = document.getElementById('backendUrl').value.trim();
+            const deviceAddress = document.getElementById('deviceAddress').value.trim();
+            const ssid = document.getElementById('ssid').value.trim();
+            const statusDiv = document.getElementById('status');
+
+            if (!deviceAddress) {
+                statusDiv.innerHTML = '<span class="error">❌ Error: Device Address requis!</span>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<span class="info">⏳ Sending check-in...</span>';
+
+            try {
+                const battery = await getBatteryLevel();
+
+                const checkInData = {
+                    deviceAddress: deviceAddress,
+                    platform: 0,  // Android
+                    timestamp: Math.floor(Date.now() / 1000),
+                    batteryLevel: parseFloat(battery.level.toFixed(1)),
+                    isCharging: battery.charging,
+                    batteryHealth: "good",
+                    temperatures: {
+                        battery: 25 + Math.random() * 10,
+                        cpu: 35 + Math.random() * 20,
+                        gpu: 33 + Math.random() * 15,
+                        ambient: 20 + Math.random() * 10
+                    },
+                    networkType: "wifi",
+                    ssid: ssid || null
+                };
+
+                const response = await fetch(`${backendUrl}/processor/check-in`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                        // NO X-Device-Signature header = bypass mode
+                    },
+                    body: JSON.stringify(checkInData)
+                });
+
+                const result = await response.json();
+
+                checkInCount++;
+
+                if (response.ok) {
+                    const now = new Date().toLocaleTimeString();
+                    statusDiv.innerHTML = `
+                        <span class="success">✅ Check-in #${checkInCount} SUCCESS @ ${now}</span><br>
+                        <span style="color: #ffaa00;">🔋 Battery: ${checkInData.batteryLevel}% ${checkInData.isCharging ? '⚡' : '🔌'}</span><br>
+                        <span style="color: #00ccff;">🌡️ CPU: ${checkInData.temperatures.cpu.toFixed(1)}°C | GPU: ${checkInData.temperatures.gpu.toFixed(1)}°C</span><br>
+                        <span style="color: #aaa; font-size: 11px;">Response: ${JSON.stringify(result)}</span>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `<span class="error">❌ Error ${response.status}: ${JSON.stringify(result)}</span>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">❌ Network Error: ${error.message}</span>`;
+            }
+        }
+
+        function toggleAutoCheckIn() {
+            const btn = document.getElementById('autoBtn');
+            const autoStatus = document.getElementById('autoStatus');
+
+            if (autoCheckInInterval) {
+                // Stop auto check-in
+                clearInterval(autoCheckInInterval);
+                autoCheckInInterval = null;
+                btn.innerHTML = '▶️ START AUTO CHECK-IN (60s interval)';
+                btn.style.background = '#00aa00';
+                autoStatus.innerHTML = '';
+            } else {
+                // Start auto check-in
+                sendCheckIn(); // First check-in immediately
+                autoCheckInInterval = setInterval(() => {
+                    sendCheckIn();
+                }, 60000); // Every 60 seconds
+
+                btn.innerHTML = '⏸️ STOP AUTO CHECK-IN';
+                btn.style.background = '#cc1f00';
+                autoStatus.innerHTML = '🔄 Auto check-in ACTIF (60s interval)';
+            }
+        }
+
+        // Auto-fill device address if available in URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('addr')) {
+            document.getElementById('deviceAddress').value = urlParams.get('addr');
+        }
+    </script>
+</body>
+</html>

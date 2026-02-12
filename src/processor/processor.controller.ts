@@ -237,6 +237,18 @@ export class ProcessorController {
     this.logger.log(
       `New check-in received from ${checkInRequest.deviceAddress}`,
     );
+
+    // DEBUG: Log signature header details
+    console.log('=== DEBUG CHECK-IN START ===');
+    console.log('[DEBUG] Signature header received:', signature);
+    console.log('[DEBUG] Signature type:', typeof signature);
+    console.log('[DEBUG] Signature is undefined?:', signature === undefined);
+    console.log('[DEBUG] Signature length:', signature?.length);
+    console.log('[DEBUG] Request body:', JSON.stringify(checkInRequest, null, 2));
+    console.log('[DEBUG] Platform:', checkInRequest.platform);
+    console.log('[DEBUG] Timestamp:', checkInRequest.timestamp);
+    console.log('=== DEBUG CHECK-IN END ===');
+
     try {
       const serviceResponse = await this.processorService.handleCheckIn(
         checkInRequest,

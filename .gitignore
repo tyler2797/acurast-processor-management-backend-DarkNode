@@ -54,3 +54,17 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 db.sqlite
 acurast-processor-management-backend.tar
+
+# PostgreSQL data directory
+data/
+
+# Keypairs and sensitive files
+*keypairs*.json
+*.pem
+.cloudflared/
+
+# Local scripts and test files
+monitor-devices.sh
+get-real-phone-stats.sh
+test-signature-debug.js
+URLS.txt

@@ -1,7 +1,8 @@
-version: '3.8'
-
 services:
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: acurast-processor-management-backend:latest
     ports:
       - 8002:9001
@@ -29,7 +30,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
+      POSTGRES_DB: acurast_processor
       POSTGRES_INITDB_ARGS: '--data-checksums'
       POSTGRES_HOST_AUTH_METHOD: 'scram-sha-256'
     healthcheck:
